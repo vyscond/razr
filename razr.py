@@ -54,7 +54,7 @@ class Screen:
         glLoadIdentity()
         # Upper-left origin
         # glOrtho(0.0, self.width, 0.0, self.height, 0.0, 1.0)
-        glOrtho(0.0, self.width, self.height, 0.0, 0.0, 1.0)
+        glOrtho(0.0, self.width, 0.0, self.height, 0.0, 1.0)
         glMatrixMode (GL_MODELVIEW)
         glLoadIdentity()
 
@@ -69,6 +69,10 @@ class Screen:
             self.scene.draw()
         # important for double buffering
         glutSwapBuffers()
+
+    def quit(self):
+        glutDestroyWindow(self.window)
+        exit()
 
 class Scene:
 
@@ -85,62 +89,77 @@ class Scene:
     def keyboard_special_callback(self, key, x, y):
         pass
 
+    def keyboard_modifier(self):
+        return glutGetModifiers()
+
 class Actor(object):
 
-    def __init__(self):
-        self.gravity_factor = 0
-
-    def gravity(self):
-        if self.gravity_factor > 0:
-            for point in self.matrix:
-                point[1] -= self.gravity_factor
+    def __init__(self, gforce=0):
+        self.gforce = gforce
 
     def draw(self):
         raise NotImplementedError('draw not defined')
 
 class Polygon(Actor):
 
-    def __init__(self, origin, radius, vertices):
+    def __init__(self, origin, vertices, radius, degree=45, color="#000000"):
         super(Polygon, self).__init__()
         self.origin = origin
         self.radius = radius
         self.vertices = vertices
         self.matrix = []
+        self.radians = math.radians(degree)
+        self.color = Color(color)
+        print('Polygon > processing {} vertices'.format(self.vertices+1))
         for vert in range(1,self.vertices+1):
             theta = 2 * math.pi * vert / self.vertices
-            x = radius * math.cos(theta)
-            y = radius * math.sin(theta)
+            # there is a specific length for every point
+            if type(self.radius) == list:
+                r = radius[vert - 1]
+            # equal length to every point
+            else:
+                r = radius
+            # plotting the coordinates with a initial degree rotation
+            x = r * math.cos(theta - self.radians)
+            y = r * math.sin(theta - self.radians)
             self.matrix.append([x + self.origin[0], y + self.origin[1]])
             # self.matrix.append([x, y])
 
-    def move(self, x, y):
-        self.origin = (self.origin[0] + x, self.origin[1] + y)
-        self.matrix = []
-        for vert in range(1,self.vertices+1):
-            theta = 2 * math.pi * vert / self.vertices
-            x = self.radius * math.cos(theta)
-            y = self.radius * math.sin(theta)
-            self.matrix.append([x + self.origin[0], y + self.origin[1]])
+    def apply_gravity(self):
+        if self.gforce > 0:
+            self.move(0, -(self.gravity_factor))
 
     def draw(self):
         x, y = 0, 1 # axys
+        # coloring
+        glColor3f(self.color.red, self.color.green, self.color.blue)
         # checking gravity
-        self.gravity()
-        glBegin(GL_TRIANGLE_FAN) # filled object
+        self.apply_gravity()
+        # filled object
+        glBegin(GL_TRIANGLE_FAN)
+        # drawing coordinates
         for point in self.matrix:
             glVertex2f(point[x], point[y])
         glEnd()
+
+    def move(self, x, y):
+        self.origin = (self.origin[0] + x, self.origin[1] + y)
+        for point in self.matrix:
+            print("x={} -> x'={}".format(point[0], point[0]+x))
+            point[0] += x
+            point[1] += y
 
     def rotate(self, degree):
         radians = math.radians(-1 * degree)
         cos = math.cos(radians)
         sin = math.sin(radians)
-        for point in self.matrix:
+        for point in list(self.matrix):
             # move the coordinate to the origin
             x, y = point[0] - self.origin[0], point[1] - self.origin[1]
             # make the translation and than move the points to the real origin
             point[0] = ((x * cos) - (y * sin)) + self.origin[0]
             point[1] = ((x * sin) + (y * cos)) + self.origin[1]
+        # self.radians += radians
 
     def show(self):
         for c in self.matrix:
@@ -149,39 +168,14 @@ class Polygon(Actor):
 class Triangle(Polygon):
 
     def __init__(self, origin, size, color="#000000"):
-        super(Triangle, self).__init__(origin, size/2, 3)
-        self.color = Color(color)
-
-    def draw(self):
-        glColor3f(self.color.red, self.color.green, self.color.blue)
-        super(Triangle, self).draw()
+        super(Triangle, self).__init__(origin, 3, size/2, degree=30, color=color)
 
 class Square(Polygon):
 
     def __init__(self, origin, size, color="#000000"):
-        super(Square, self).__init__(origin, size/2, 4)
-        self.color = Color(color)
-
-    def draw(self):
-        glColor3f(self.color.red, self.color.green, self.color.blue)
-        super(Square, self).draw()
+        super(Square, self).__init__(origin, 4, size/2, color=color)
 
 # class Rectangle(Polygon):
-
+#
 #     def __init__(self, origin, width, height, color="#000000"):
-#         self.origin = origin
-#         self.width = width
-#         self.height = height
-
-#         matrix = [
-#             [x, y],
-#             [x + width, y],
-#             [x + width, y + height],
-#             [x, y + height]
-#         ]
-#         super(Rectangle, self).__init__(matrix)
-
-#     def draw(self):
-#         glColor3f(self.color.red, self.color.green, self.color.blue)
-#         glBegin(GL_QUADS)  # start drawing a rectangle
-#         super(Rectangle, self).draw()
+#         super(Rectangle, self).__init__(origin, 4, [height/2, width, height/2, width], degree=10, color=color)
