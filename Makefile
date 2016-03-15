@@ -4,4 +4,4 @@ req:
 
 run:
 	clear
-	python test.py
+	python test2.py
