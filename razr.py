@@ -196,7 +196,6 @@ class Point(object):
     def __str__(self):
         return 'point({:0.2f}, {:0.2f})'.format(self.x, self.y)
 
-class 
 
 class Polygon(Actor):
     '''
